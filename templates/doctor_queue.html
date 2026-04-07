@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Doctor Queue - MediCare HMS{% endblock %}
+{% block topbar_title %}Doctor Queue{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Doctor Workbench</div>
+    <div class="page-sub">View today’s appointments, mark yourself busy when needed, and keep the receptionist aware of delays through the shared schedule logic.</div>
+  </div>
+  <a class="btn btn-outline" href="{{ url_for('calendar_view', date=today) }}"><i class="fa-solid fa-calendar-days"></i> Open Calendar</a>
+</div>
+
+<div style="display:grid; grid-template-columns: 0.95fr 1.05fr; gap:20px; align-items:start;">
+  <div class="stack">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">My Availability</span>
+        <span class="badge badge-{{ doctor.availability_status or 'available' }}">{{ doctor.availability_status or 'available' }}</span>
+      </div>
+      <form method="POST" action="{{ url_for('update_doctor_availability') }}">
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select name="availability_status" class="form-control">
+            <option value="available" {% if (doctor.availability_status or 'available') == 'available' %}selected{% endif %}>Available</option>
+            <option value="busy" {% if doctor.availability_status == 'busy' %}selected{% endif %}>Busy</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Reason</label>
+          <input name="availability_note" class="form-control" value="{{ doctor.availability_note or '' }}" placeholder="e.g. Procedure extending until 12:00 PM">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Busy date</label>
+            <input type="date" name="block_date" class="form-control" value="{{ today }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Busy start</label>
+            <input type="time" name="block_start" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Busy end</label>
+          <input type="time" name="block_end" class="form-control">
+        </div>
+        <button class="btn btn-primary" type="submit"><i class="fa-solid fa-toggle-on"></i> Update My Status</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Today's Slot View</span>
+        <span class="tag">{{ today }}</span>
+      </div>
+      <div class="calendar-grid">
+        {% for slot in schedule_board.slots %}
+        <div class="slot-pill {{ slot.state }}">
+          <div style="font-weight:800;">{{ slot.label }}</div>
+          <div class="text-muted">{{ slot.note or slot.state }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Today's Active Queue</span>
+        <span class="tag">{{ patients|length }} patients</span>
+      </div>
+      {% if patients %}
+      <div class="stack">
+        {% for p in patients %}
+        <div class="mini-card">
+          <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div>
+              <div style="font-weight:800;">{{ p.name }}</div>
+              <div class="text-muted">{{ p.age }} yrs · {{ p.gender }} · {{ p.appointment_date }} at {{ format_time_label(p.appointment_time) }}</div>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <span class="badge badge-{{ p.status }}">{{ p.status.replace('_',' ') }}</span>
+              <span class="badge badge-{{ p.payment_status }}">{{ p.payment_status }}</span>
+            </div>
+          </div>
+          {% if p.patient_alert_message %}
+          <div class="text-muted" style="margin-top:8px;">Latest patient alert: {{ p.patient_alert_message }}</div>
+          {% endif %}
+          <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+            <a class="btn btn-outline btn-sm" href="{{ url_for('patient_detail', pid=p.id) }}">Open Record</a>
+            <a class="btn btn-primary btn-sm" href="{{ url_for('prescribe', pid=p.id) }}">Prescribe</a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state"><i class="fa-solid fa-stethoscope"></i><p>No active appointments for you today.</p></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

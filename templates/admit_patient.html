@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% block title %}Appointment Request - MediCare HMS{% endblock %}
+{% block topbar_title %}Appointment Request{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Reception Booking Desk</div>
+    <div class="page-sub">This screen follows the reception flow from your diagram: collect request details, check doctor availability, confirm payment, and schedule the visit only in valid working slots.</div>
+  </div>
+  <a class="btn btn-ghost" href="{{ url_for('appointments') }}"><i class="fa-solid fa-arrow-left"></i> Back to Appointments</a>
+</div>
+
+<div style="display:grid; grid-template-columns: 1.15fr 0.85fr; gap:20px; align-items:start;">
+  <form method="POST" action="{{ url_for('admit_patient') }}">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">1. Patient Request</span>
+        <span class="tag"><i class="fa-solid fa-phone"></i> Reception intake</span>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input name="name" class="form-control" required value="{{ form.get('name','') }}" placeholder="Patient name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Age</label>
+          <input name="age" type="number" min="0" max="150" class="form-control" required value="{{ form.get('age','') }}" placeholder="Age">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Gender</label>
+          <select name="gender" class="form-control" required>
+            <option value="">Select</option>
+            <option value="Male" {% if form.get('gender')=='Male' %}selected{% endif %}>Male</option>
+            <option value="Female" {% if form.get('gender')=='Female' %}selected{% endif %}>Female</option>
+            <option value="Other" {% if form.get('gender')=='Other' %}selected{% endif %}>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Blood Group</label>
+          <select name="blood_group" class="form-control">
+            <option value="">Unknown</option>
+            {% for bg in ['A+','A-','B+','B-','AB+','AB-','O+','O-'] %}
+            <option value="{{ bg }}" {% if form.get('blood_group')==bg %}selected{% endif %}>{{ bg }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Phone Number</label>
+          <input name="phone" class="form-control" value="{{ form.get('phone','') }}" placeholder="Used for returning profile matching">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Address</label>
+          <input name="address" class="form-control" value="{{ form.get('address','') }}" placeholder="Patient address">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Health Issue / Visit Reason</label>
+          <input name="visit_reason" class="form-control" value="{{ form.get('visit_reason','') }}" placeholder="e.g. fever, chest pain, skin rash">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Required Specialization</label>
+          <select name="required_specialization" class="form-control" id="specialization-select">
+            <option value="">Select specialization</option>
+            {% for specialization in specializations %}
+            <option value="{{ specialization }}" {% if form.get('required_specialization')==specialization %}selected{% endif %}>{{ specialization }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">2. Availability, Slot, and Payment</span>
+        <span class="tag"><i class="fa-solid fa-wallet"></i> Confirm before save</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Doctor</label>
+        <select name="doctor_id" class="form-control" id="doctor-select">
+          <option value="">Select doctor</option>
+          {% for d in doctors %}
+          <option value="{{ d.id }}"
+                  data-specialization="{{ d.specialization or '' }}"
+                  {% if form.get('doctor_id')|string == d.id|string %}selected{% endif %}>
+            {{ d.full_name }} · {{ d.specialization or 'General' }} · {{ d.work_start or '09:00' }}-{{ d.work_end or '17:00' }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Appointment Date</label>
+          <input name="appt_date" type="date" class="form-control" id="appt-date" value="{{ form.get('appt_date', selected_date) }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Appointment Time</label>
+          <select name="appt_time" class="form-control">
+            <option value="">Select a working slot</option>
+            {% for slot in slot_options %}
+            <option value="{{ slot.value }}" {% if form.get('appt_time')==slot.value %}selected{% endif %}>{{ slot.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Appointment Fee</label>
+          <input name="fee_amount" type="number" min="0" step="0.01" class="form-control" value="{{ form.get('fee_amount','') }}" placeholder="Fee amount">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Payment Mode</label>
+          <select name="payment_mode" class="form-control" id="payment-mode">
+            <option value="">Select payment mode</option>
+            <option value="online" {% if form.get('payment_mode')=='online' %}selected{% endif %}>Paid online</option>
+            <option value="cash" {% if form.get('payment_mode')=='cash' %}selected{% endif %}>Paid through cash</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" id="txn-group">
+        <label class="form-label">Transaction ID</label>
+        <input name="transaction_id" class="form-control" value="{{ form.get('transaction_id','') }}" placeholder="Required for online fee collection">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes for Doctor / Reception</label>
+        <textarea name="notes" class="form-control" placeholder="Anything important to mention before the visit">{{ form.get('notes','') }}</textarea>
+      </div>
+      <button class="btn btn-primary" type="submit"><i class="fa-solid fa-circle-check"></i> Confirm and Store Visit</button>
+    </div>
+  </form>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Schedule Rules</span>
+      </div>
+      <div class="stack">
+        <div class="mini-card">
+          <div style="font-weight:800;">Returning patient support</div>
+          <div class="text-muted">If the same phone number or matching identity returns, the visit is added to the existing permanent profile.</div>
+        </div>
+        <div class="mini-card">
+          <div style="font-weight:800;">Lunch and busy slots are blocked</div>
+          <div class="text-muted">Bookings are rejected during lunch break, outside work hours, or inside a manually blocked busy window.</div>
+        </div>
+        <div class="mini-card">
+          <div style="font-weight:800;">Refund window</div>
+          <div class="text-muted">Cancellation refund stays available only until {{ cancellation_window_hours }} hours before the scheduled visit.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Doctor Calendar Snapshot</span>
+        <span class="tag">{{ selected_date }}</span>
+      </div>
+      <div class="stack">
+        {% for doctor in schedule_board %}
+        <div class="mini-card">
+          <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+            <div>
+              <div style="font-weight:800;">{{ doctor.doctor_name }}</div>
+              <div class="text-muted">{{ doctor.specialization or '-' }} · Work {{ format_time_label(doctor.work_start) }}-{{ format_time_label(doctor.work_end) }}</div>
+            </div>
+            <span class="badge badge-available">Lunch {{ format_time_label(doctor.lunch_start) }}-{{ format_time_label(doctor.lunch_end) }}</span>
+          </div>
+          <div class="calendar-grid">
+            {% for slot in doctor.slots %}
+            <div class="slot-pill {{ slot.state }}">
+              <div style="font-weight:800;">{{ slot.label }}</div>
+              <div class="text-muted">{{ slot.note or slot.state }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const today = new Date().toISOString().split('T')[0];
+  const apptDate = document.getElementById('appt-date');
+  if (!apptDate.value) apptDate.value = today;
+  apptDate.min = today;
+
+  const modeSelect = document.getElementById('payment-mode');
+  const txnGroup = document.getElementById('txn-group');
+  function toggleTransactionField() {
+    txnGroup.style.display = modeSelect.value === 'online' ? 'block' : 'none';
+  }
+  modeSelect.addEventListener('change', toggleTransactionField);
+  toggleTransactionField();
+
+  const specializationSelect = document.getElementById('specialization-select');
+  const doctorSelect = document.getElementById('doctor-select');
+  specializationSelect.addEventListener('change', function () {
+    const wanted = this.value;
+    Array.from(doctorSelect.options).forEach((option) => {
+      if (!option.value) return;
+      option.hidden = !!wanted && option.dataset.specialization !== wanted;
+    });
+  });
+  specializationSelect.dispatchEvent(new Event('change'));
+</script>
+{% endblock %}

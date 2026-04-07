@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - MediCare HMS{% endblock %}
+{% block topbar_title %}Operations Dashboard{% endblock %}
+{% block content %}
+{% if session.role == 'receptionist' %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Reception Control Desk</div>
+    <div class="page-sub">Handle appointment requests, confirm payments, watch doctor availability, and move patients into the right consultation flow.</div>
+  </div>
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    <a class="btn btn-primary" href="{{ url_for('admit_patient') }}"><i class="fa-solid fa-phone-volume"></i> Add Appointment Request</a>
+    <a class="btn btn-outline" href="{{ url_for('appointments') }}"><i class="fa-solid fa-calendar-check"></i> Appointment Board</a>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-top"><div class="stat-icon mint"><i class="fa-solid fa-id-card"></i></div><span class="tag">Profiles</span></div>
+    <div class="stat-value">{{ stats.profiles }}</div>
+    <div class="stat-label">Permanent patient profiles</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top"><div class="stat-icon gold"><i class="fa-solid fa-phone"></i></div><span class="tag">Requests</span></div>
+    <div class="stat-value">{{ stats.today }}</div>
+    <div class="stat-label">Requests created today</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top"><div class="stat-icon gold"><i class="fa-solid fa-hourglass-half"></i></div><span class="tag">Queue</span></div>
+    <div class="stat-value">{{ stats.waiting }}</div>
+    <div class="stat-label">Patients waiting</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top"><div class="stat-icon coral"><i class="fa-solid fa-user-doctor"></i></div><span class="tag">Busy</span></div>
+    <div class="stat-value">{{ stats.busy_doctors }}</div>
+    <div class="stat-label">Doctors marked busy</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top"><div class="stat-icon mint"><i class="fa-solid fa-calendar-check"></i></div><span class="tag">Active</span></div>
+    <div class="stat-value">{{ stats.appts }}</div>
+    <div class="stat-label">Active appointments today</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top"><div class="stat-icon mint"><i class="fa-solid fa-notes-medical"></i></div><span class="tag">Closed</span></div>
+    <div class="stat-value">{{ stats.prescribed }}</div>
+    <div class="stat-label">Consultations completed</div>
+  </div>
+</div>
+
+<div style="display:grid; grid-template-columns: 1.1fr 0.9fr; gap:20px; align-items:start;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Reception Workflow</span></div>
+    <div class="timeline">
+      {% for icon, label, active in [('fa-phone','Request',true),('fa-user-doctor','Check doctor',true),('fa-wallet','Collect fee',true),('fa-calendar-check','Confirm slot',false),('fa-bell','Notify patient',false)] %}
+      <div class="tl-step {% if loop.index0 < 3 %}done{% elif loop.index0 == 3 %}active{% endif %}">
+        <div class="tl-dot"><i class="fa-solid {{ icon }}"></i></div>
+        <div class="tl-label">{{ label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="mini-card" style="margin-top:18px;">
+      <div style="font-weight:800; margin-bottom:8px;">Reception reminders</div>
+      <div class="text-muted">Lunch slots stay blocked, busy doctor periods appear on the calendar, rescheduled appointments store alert text, and repeat patients are attached to their existing profile automatically.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Doctor Busy Notifications</span>
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('notifications') }}">Open All</a>
+    </div>
+    {% if recent_notifications %}
+    <div class="stack">
+      {% for item in recent_notifications %}
+      <div class="mini-card" style="border-left:4px solid #d97757;">
+        <div style="font-weight:800;">{{ item.title }}</div>
+        <div class="text-muted" style="margin-top:6px;">{{ item.message }}</div>
+        <div class="text-muted" style="margin-top:6px;">{{ item.created_at[:16] }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state"><i class="fa-solid fa-bell-slash"></i><p>No new doctor busy notifications.</p></div>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Doctor Overview</div>
+    <div class="page-sub">See your own queue, active consultations, and today’s appointment pressure without the receptionist controls.</div>
+  </div>
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    <a class="btn btn-primary" href="{{ url_for('doctor_queue') }}"><i class="fa-solid fa-stethoscope"></i> Open My Queue</a>
+    <a class="btn btn-outline" href="{{ url_for('calendar_view') }}"><i class="fa-solid fa-calendar-days"></i> My Calendar</a>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-top"><div class="stat-icon mint"><i class="fa-solid fa-calendar-day"></i></div><span class="tag">Today</span></div>
+    <div class="stat-value">{{ stats.appts }}</div>
+    <div class="stat-label">Appointments on today’s board</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top"><div class="stat-icon gold"><i class="fa-solid fa-hourglass-half"></i></div><span class="tag">Waiting</span></div>
+    <div class="stat-value">{{ stats.waiting }}</div>
+    <div class="stat-label">Patients still waiting</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top"><div class="stat-icon mint"><i class="fa-solid fa-stethoscope"></i></div><span class="tag">Live</span></div>
+    <div class="stat-value">{{ stats.consultation }}</div>
+    <div class="stat-label">In consultation now</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top"><div class="stat-icon mint"><i class="fa-solid fa-file-prescription"></i></div><span class="tag">Done</span></div>
+    <div class="stat-value">{{ stats.prescribed }}</div>
+    <div class="stat-label">Completed consultations</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top"><div class="stat-icon coral"><i class="fa-solid fa-bell"></i></div><span class="tag">Status</span></div>
+    <div class="stat-value">{{ stats.busy_doctors }}</div>
+    <div class="stat-label">Doctors currently marked busy</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top"><div class="stat-icon gold"><i class="fa-solid fa-users"></i></div><span class="tag">Records</span></div>
+    <div class="stat-value">{{ stats.total }}</div>
+    <div class="stat-label">Total visit records in system</div>
+  </div>
+</div>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; align-items:start;">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Doctor Focus</span></div>
+    <div class="stack">
+      <div class="mini-card">
+        <div style="font-weight:800;">Queue-first workflow</div>
+        <div class="text-muted">Open your queue, update your availability, and prescribe directly from active visit records.</div>
+      </div>
+      <div class="mini-card">
+        <div style="font-weight:800;">Protected lunch and busy time</div>
+        <div class="text-muted">Your lunch window and manually blocked time appear to reception automatically.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">Recent Patient Visits</span></div>
+    {% if recent %}
+    <div class="stack">
+      {% for p in recent %}
+      <div class="mini-card">
+        <div style="font-weight:800;">{{ p.name }}</div>
+        <div class="text-muted">{{ p.required_specialization or p.visit_reason or p.doctor_specialization or '-' }}</div>
+        <div style="margin-top:8px;"><span class="badge badge-{{ p.status }}">{{ p.status.replace('_',' ') }}</span></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state"><i class="fa-solid fa-notes-medical"></i><p>No patient visits have been recorded yet.</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">{% if session.role == 'doctor' %}Patients Waiting for You{% else %}Recent Patient Visits{% endif %}</span>
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('patients') }}">Open Records</a>
+  </div>
+  {% if recent %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Patient</th>
+          <th>Need</th>
+          <th>Status</th>
+          <th>{% if session.role == 'doctor' %}Assigned Doctor{% else %}Doctor{% endif %}</th>
+          <th>Visit Logged</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for p in recent %}
+        <tr>
+          <td><strong>{{ p.name }}</strong></td>
+          <td>{{ p.required_specialization or p.visit_reason or p.doctor_specialization or '-' }}</td>
+          <td><span class="badge badge-{{ p.status }}">{{ p.status.replace('_',' ') }}</span></td>
+          <td>{{ p.doctor_name or 'Unassigned' }}</td>
+          <td class="text-muted">{{ p.admitted_at[:16] }}</td>
+          <td><a class="btn btn-outline btn-sm" href="{{ url_for('patient_detail', pid=p.id) }}">View</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="fa-solid fa-notes-medical"></i><p>{% if session.role == 'doctor' %}No patients are currently waiting for you.{% else %}No patient visits have been recorded yet.{% endif %}</p></div>
+  {% endif %}
+</div>
+{% endblock %}

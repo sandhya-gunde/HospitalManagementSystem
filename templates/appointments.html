@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% block title %}Appointments - MediCare HMS{% endblock %}
+{% block topbar_title %}Appointment Board{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Appointment Management Board</div>
+    <div class="page-sub">Manage confirmed slots, payment mode, doctor busy notices, reschedules, cancellations, and the patient alert trail from one place.</div>
+  </div>
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    {% if session.role == 'receptionist' %}
+    <a class="btn btn-primary" href="{{ url_for('admit_patient', date=selected_date) }}"><i class="fa-solid fa-plus"></i> New Booking</a>
+    {% endif %}
+    <a class="btn btn-outline" href="{{ url_for('calendar_view', date=selected_date) }}"><i class="fa-solid fa-calendar-days"></i> Open Full Calendar</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Daily Slot Board</span>
+    <form method="GET" action="{{ url_for('appointments') }}" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <input type="date" name="date" class="form-control" value="{{ selected_date }}" style="width:190px;">
+      <button class="btn btn-outline btn-sm" type="submit">Load Date</button>
+    </form>
+  </div>
+  <div class="stack">
+    {% for doctor in calendar_board %}
+    <div class="mini-card">
+      <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+        <div>
+          <div style="font-weight:800;">{{ doctor.doctor_name }}</div>
+          <div class="text-muted">{{ doctor.specialization or '-' }} · {{ format_time_label(doctor.work_start) }}-{{ format_time_label(doctor.work_end) }} · Lunch {{ format_time_label(doctor.lunch_start) }}-{{ format_time_label(doctor.lunch_end) }}</div>
+        </div>
+        <span class="tag">{{ selected_date }}</span>
+      </div>
+      <div class="calendar-grid">
+        {% for slot in doctor.slots %}
+        <div class="slot-pill {{ slot.state }}">
+          <div style="font-weight:800;">{{ slot.label }}</div>
+          <div class="text-muted">{{ slot.note or slot.state }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% if session.role == 'receptionist' %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Doctor Availability and Busy Time Updates</span>
+  </div>
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px;">
+    {% for doctor in doctors %}
+    <form class="mini-card" method="POST" action="{{ url_for('update_doctor_availability') }}">
+      <input type="hidden" name="doctor_id" value="{{ doctor.id }}">
+      <div style="display:flex; justify-content:space-between; gap:10px; margin-bottom:10px; align-items:flex-start;">
+        <div>
+          <div style="font-weight:800;">{{ doctor.full_name }}</div>
+          <div class="text-muted">{{ doctor.specialization or '-' }}</div>
+        </div>
+        <span class="badge badge-{{ doctor.availability_status or 'available' }}">{{ doctor.availability_status or 'available' }}</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Doctor status</label>
+        <select name="availability_status" class="form-control">
+          <option value="available" {% if (doctor.availability_status or 'available') == 'available' %}selected{% endif %}>Available</option>
+          <option value="busy" {% if doctor.availability_status == 'busy' %}selected{% endif %}>Busy</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason</label>
+        <input name="availability_note" class="form-control" value="{{ doctor.availability_note or '' }}" placeholder="e.g. Emergency case">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Busy date</label>
+          <input type="date" name="block_date" class="form-control" value="{{ selected_date }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Busy start</label>
+          <input type="time" name="block_start" class="form-control">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Busy end</label>
+        <input type="time" name="block_end" class="form-control">
+      </div>
+      <button class="btn btn-outline btn-sm" type="submit"><i class="fa-solid fa-bell"></i> Save Busy Update</button>
+    </form>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Confirmed Appointment Records</span>
+  </div>
+  {% if appointments %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Patient</th>
+          <th>Doctor & Slot</th>
+          <th>Status Trail</th>
+          <th>Payment</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for a in appointments %}
+        <tr>
+          <td><strong>#{{ a.id }}</strong></td>
+          <td>
+            <strong>{{ a.patient_name }}</strong><br>
+            <span class="text-muted">{{ a.patient_phone or 'No phone' }}{% if a.visit_reason %} · {{ a.visit_reason }}{% endif %}</span>
+          </td>
+          <td>
+            <div style="font-weight:800;">{{ a.doctor_name }}</div>
+            <div class="text-muted">{{ a.doctor_specialization or '-' }}</div>
+            <div style="margin-top:6px;">{{ a.appointment_date }} · {{ format_time_label(a.appointment_time) }}</div>
+          </td>
+          <td>
+            <div><span class="badge badge-{{ a.status }}">{{ a.status.replace('_',' ') }}</span></div>
+            <div style="margin-top:6px;"><span class="badge badge-{{ a.refund_status }}">{{ a.refund_status.replace('_',' ') }}</span></div>
+            {% if a.patient_alert_message %}
+            <div class="text-muted" style="margin-top:8px;">Patient alert: {{ a.patient_alert_message }}</div>
+            {% endif %}
+            {% if a.cancellation_deadline %}
+            <div class="text-muted" style="margin-top:6px;">Refund cut-off: {{ a.cancellation_deadline }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <div><span class="badge badge-{{ a.payment_status }}">{{ a.payment_status }}</span></div>
+            {% if a.payment_mode %}<div style="margin-top:6px;"><span class="badge badge-{{ a.payment_mode }}">{{ a.payment_mode }}</span></div>{% endif %}
+            {% if a.transaction_id %}<div class="text-muted" style="margin-top:6px;">Txn: {{ a.transaction_id }}</div>{% endif %}
+            {% if a.fee_amount %}<div class="text-muted" style="margin-top:6px;">Fee: Rs. {{ '%.2f'|format(a.fee_amount) }}</div>{% endif %}
+          </td>
+          <td style="min-width:320px;">
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+              <a class="btn btn-outline btn-sm" href="{{ url_for('patient_detail', pid=a.patient_id) }}">Open Record</a>
+            </div>
+
+            {% if session.role == 'receptionist' %}
+            <form method="POST" action="{{ url_for('update_payment', appointment_id=a.id) }}" class="mini-card" style="margin-bottom:10px;">
+              <div class="form-row">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label">Payment mode</label>
+                  <select name="payment_mode" class="form-control">
+                    <option value="online" {% if a.payment_mode=='online' %}selected{% endif %}>Paid online</option>
+                    <option value="cash" {% if a.payment_mode=='cash' %}selected{% endif %}>Paid through cash</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label">Transaction ID</label>
+                  <input name="transaction_id" class="form-control" value="{{ a.transaction_id or '' }}" placeholder="Needed for online">
+                </div>
+              </div>
+              <button class="btn btn-outline btn-sm" type="submit">Update Payment</button>
+            </form>
+            {% endif %}
+
+            {% if a.status != 'cancelled' %}
+            <form method="POST" action="{{ url_for('reschedule_appointment', appointment_id=a.id) }}" class="mini-card" style="margin-bottom:10px;">
+              <div class="form-row">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label">New date</label>
+                  <input type="date" name="new_date" class="form-control" required value="{{ a.appointment_date }}">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label">New time</label>
+                  <select name="new_time" class="form-control" required>
+                    {% for slot in slot_options %}
+                    <option value="{{ slot.value }}" {% if a.appointment_time==slot.value %}selected{% endif %}>{{ slot.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+              <div class="form-group" style="margin:10px 0;">
+                <label class="form-label">Reschedule reason</label>
+                <input name="reason" class="form-control" placeholder="e.g. Doctor busy / patient request">
+              </div>
+              <button class="btn btn-warning btn-sm" type="submit"><i class="fa-solid fa-arrow-rotate-right"></i> Reschedule</button>
+            </form>
+            {% endif %}
+
+            {% if session.role == 'receptionist' and a.status != 'cancelled' %}
+            <form method="POST" action="{{ url_for('cancel_appointment', appointment_id=a.id) }}" class="mini-card">
+              <div class="form-group" style="margin-bottom:10px;">
+                <label class="form-label">Cancellation note</label>
+                <input name="reason" class="form-control" placeholder="Reason for cancellation">
+              </div>
+              <button class="btn btn-danger btn-sm" type="submit"><i class="fa-solid fa-ban"></i> Cancel</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-calendar-xmark"></i>
+    <p>No appointments have been created yet.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

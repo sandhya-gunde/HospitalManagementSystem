@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Patient Records - MediCare HMS{% endblock %}
+{% block topbar_title %}Patient Records{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Permanent Patient Records</div>
+    <div class="page-sub">Each returning patient continues under the same stored profile, while every new appointment becomes a separate visit entry.</div>
+  </div>
+  {% if session.role == 'receptionist' %}
+  <a class="btn btn-primary" href="{{ url_for('admit_patient') }}"><i class="fa-solid fa-user-plus"></i> Add Appointment Request</a>
+  {% endif %}
+</div>
+
+<form method="GET" class="search-bar">
+  <div class="search-input-wrap" style="flex:2;">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input name="q" class="form-control" placeholder="Search by name or phone number" value="{{ q }}">
+  </div>
+  <select name="status" class="form-control" style="width:200px;">
+    <option value="">All visit statuses</option>
+    <option value="waiting" {% if status_filter=='waiting' %}selected{% endif %}>Waiting</option>
+    <option value="in_consultation" {% if status_filter=='in_consultation' %}selected{% endif %}>In consultation</option>
+    <option value="prescribed" {% if status_filter=='prescribed' %}selected{% endif %}>Prescribed</option>
+    <option value="discharged" {% if status_filter=='discharged' %}selected{% endif %}>Discharged</option>
+  </select>
+  <button class="btn btn-primary" type="submit"><i class="fa-solid fa-filter"></i> Filter</button>
+  {% if q or status_filter %}
+  <a class="btn btn-ghost" href="{{ url_for('patients') }}"><i class="fa-solid fa-rotate-left"></i> Reset</a>
+  {% endif %}
+</form>
+
+<div class="card">
+  {% if patients %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Visit</th>
+          <th>Patient</th>
+          <th>Requirement</th>
+          <th>Doctor</th>
+          <th>Status</th>
+          <th>Recorded</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for p in patients %}
+        <tr>
+          <td>
+            <strong>#{{ p.id }}</strong><br>
+            <span class="tag">Visit {{ p.visit_number or 1 }}</span>
+          </td>
+          <td>
+            <strong>{{ p.name }}</strong><br>
+            <span class="text-muted">{{ p.age }} yrs · {{ p.gender }}{% if p.phone %} · {{ p.phone }}{% endif %}</span>
+          </td>
+          <td>
+            <div>{{ p.visit_reason or 'General consultation' }}</div>
+            <div class="text-muted">{{ p.required_specialization or p.doctor_specialization or '-' }}</div>
+          </td>
+          <td>{{ p.doctor_name or 'Unassigned' }}</td>
+          <td><span class="badge badge-{{ p.status }}">{{ p.status.replace('_',' ') }}</span></td>
+          <td class="text-muted">{{ p.admitted_at[:16] }}</td>
+          <td><a class="btn btn-outline btn-sm" href="{{ url_for('patient_detail', pid=p.id) }}">Open</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="fa-solid fa-folder-open"></i>
+    <p>No patient records found{% if q %} for "{{ q }}"{% endif %}.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

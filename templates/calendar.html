@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}Doctor Calendar - MediCare HMS{% endblock %}
+{% block topbar_title %}Doctor Calendar{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Shared Doctor Calendar</div>
+    <div class="page-sub">Reception and doctors both see the same work window, lunch break, booked slots, and busy blocks so invalid timings never get booked by mistake.</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Calendar Filters</span>
+  </div>
+  <form method="GET" action="{{ url_for('calendar_view') }}" class="form-row">
+    <div class="form-group" style="margin-bottom:0;">
+      <label class="form-label">Date</label>
+      <input type="date" name="date" class="form-control" value="{{ selected_date }}">
+    </div>
+    {% if session.role == 'receptionist' %}
+    <div class="form-group" style="margin-bottom:0;">
+      <label class="form-label">Doctor</label>
+      <select name="doctor_id" class="form-control">
+        <option value="">All doctors</option>
+        {% for doctor in doctors %}
+        <option value="{{ doctor.id }}" {% if doctor_filter|string == doctor.id|string %}selected{% endif %}>{{ doctor.full_name }} · {{ doctor.specialization or '-' }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div class="form-group" style="margin-bottom:0; align-self:end;">
+      <button class="btn btn-primary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Load Calendar</button>
+    </div>
+  </form>
+</div>
+
+{% if session.role == 'doctor' %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">My Working Schedule</span>
+  </div>
+  <form method="POST" action="{{ url_for('update_schedule') }}">
+    <input type="hidden" name="selected_date" value="{{ selected_date }}">
+    <div class="form-row-3">
+      <div class="form-group">
+        <label class="form-label">Work start</label>
+        <input type="time" name="work_start" class="form-control" value="{{ board[0].work_start if board else '09:00' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Work end</label>
+        <input type="time" name="work_end" class="form-control" value="{{ board[0].work_end if board else '17:00' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Slot minutes</label>
+        <input type="number" name="slot_minutes" class="form-control" value="{{ board[0].slot_minutes if board else 30 }}" min="15" step="15">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Lunch start</label>
+        <input type="time" name="lunch_start" class="form-control" value="{{ board[0].lunch_start if board else '13:00' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Lunch end</label>
+        <input type="time" name="lunch_end" class="form-control" value="{{ board[0].lunch_end if board else '14:00' }}">
+      </div>
+    </div>
+    <button class="btn btn-outline" type="submit"><i class="fa-solid fa-clock"></i> Save Work Schedule</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Add Busy / Unavailable Block</span>
+  </div>
+  <form method="POST" action="{{ url_for('create_calendar_block') }}">
+    <div class="form-row-3">
+      <div class="form-group">
+        <label class="form-label">Doctor</label>
+        <select name="doctor_id" class="form-control" {% if session.role == 'doctor' %}readonly{% endif %}>
+          {% for doctor in doctors %}
+          {% if session.role == 'receptionist' or doctor.id == session.user_id %}
+          <option value="{{ doctor.id }}">{{ doctor.full_name }} · {{ doctor.specialization or '-' }}</option>
+          {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" name="block_date" class="form-control" value="{{ selected_date }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Block Type</label>
+        <select name="block_type" class="form-control">
+          <option value="busy">Busy</option>
+          <option value="meeting">Meeting</option>
+          <option value="procedure">Procedure</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Start time</label>
+        <input type="time" name="start_time" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">End time</label>
+        <input type="time" name="end_time" class="form-control" required>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Reason</label>
+      <input name="reason" class="form-control" placeholder="Why this time should not be booked">
+    </div>
+    <button class="btn btn-primary" type="submit"><i class="fa-solid fa-plus"></i> Save Time Block</button>
+  </form>
+</div>
+
+<div class="stack">
+  {% for doctor in board %}
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">{{ doctor.doctor_name }}</div>
+        <div class="text-muted">{{ doctor.specialization or '-' }} · Work {{ format_time_label(doctor.work_start) }}-{{ format_time_label(doctor.work_end) }} · Lunch {{ format_time_label(doctor.lunch_start) }}-{{ format_time_label(doctor.lunch_end) }}</div>
+      </div>
+      <span class="tag">{{ selected_date }}</span>
+    </div>
+    <div class="calendar-grid">
+      {% for slot in doctor.slots %}
+      <div class="slot-pill {{ slot.state }}">
+        <div style="font-weight:800;">{{ slot.label }}</div>
+        <div class="text-muted">{{ slot.note or slot.state }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

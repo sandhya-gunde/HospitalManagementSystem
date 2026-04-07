@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Notifications - MediCare HMS{% endblock %}
+{% block topbar_title %}Reception Notifications{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Doctor Availability Notifications</div>
+    <div class="page-sub">Every time a doctor marks busy time or adds an unavailable block, the message is saved here for the receptionist.</div>
+  </div>
+</div>
+
+<div class="card">
+  {% if notifications %}
+  <div class="stack">
+    {% for item in notifications %}
+    <div class="mini-card" style="border-left:4px solid #d97757;">
+      <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <div style="font-weight:800;">{{ item.title }}</div>
+        <span class="tag">{{ item.created_at[:16] }}</span>
+      </div>
+      <div class="text-muted" style="margin-top:8px;">{{ item.message }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="fa-solid fa-bell-slash"></i><p>No notifications saved yet.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

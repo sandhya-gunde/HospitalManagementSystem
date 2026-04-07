@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+{% block title %}{{ patient.name }} - MediCare HMS{% endblock %}
+{% block topbar_title %}Patient Profile{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">{{ patient.name }}</div>
+    <div class="page-sub">This visit is connected to a permanent patient profile, so future visits, appointments, and prescriptions stay under the same record.</div>
+  </div>
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    <a class="btn btn-ghost" href="{{ url_for('patients') }}"><i class="fa-solid fa-arrow-left"></i> Back</a>
+    {% if session.role == 'doctor' and patient.status in ['waiting','in_consultation'] %}
+    <a class="btn btn-primary" href="{{ url_for('prescribe', pid=patient.id) }}"><i class="fa-solid fa-file-prescription"></i> Write Prescription</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Visit Progress</span>
+    <span class="tag">Visit {{ patient.visit_number or 1 }}</span>
+  </div>
+  {% set statuses = ['waiting','in_consultation','prescribed','discharged'] %}
+  {% set labels = ['Waiting','Consultation','Prescription','Closed'] %}
+  {% set icons = ['fa-hourglass-half','fa-stethoscope','fa-file-prescription','fa-check-circle'] %}
+  {% set cur_idx = statuses.index(patient.status) if patient.status in statuses else 0 %}
+  <div class="timeline">
+    {% for i in range(statuses|length) %}
+    <div class="tl-step {% if i < cur_idx %}done{% elif i == cur_idx %}active{% endif %}">
+      <div class="tl-dot"><i class="fa-solid {{ icons[i] }}"></i></div>
+      <div class="tl-label">{{ labels[i] }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; align-items:start;">
+  <div class="stack">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Patient and Visit Details</span>
+        <span class="badge badge-{{ patient.status }}">{{ patient.status.replace('_',' ') }}</span>
+      </div>
+      <div class="info-grid">
+        <div class="info-row"><span class="info-label">Patient Name</span><span class="info-value">{{ patient.name }}</span></div>
+        <div class="info-row"><span class="info-label">Age</span><span class="info-value">{{ patient.age }}</span></div>
+        <div class="info-row"><span class="info-label">Gender</span><span class="info-value">{{ patient.gender }}</span></div>
+        <div class="info-row"><span class="info-label">Blood Group</span><span class="info-value">{{ patient.blood_group or '-' }}</span></div>
+        <div class="info-row"><span class="info-label">Phone</span><span class="info-value">{{ patient.phone or '-' }}</span></div>
+        <div class="info-row"><span class="info-label">Address</span><span class="info-value">{{ patient.address or '-' }}</span></div>
+        <div class="info-row"><span class="info-label">Visit Reason</span><span class="info-value">{{ patient.visit_reason or '-' }}</span></div>
+        <div class="info-row"><span class="info-label">Required Specialization</span><span class="info-value">{{ patient.required_specialization or patient.doctor_specialization or '-' }}</span></div>
+        <div class="info-row"><span class="info-label">Assigned Doctor</span><span class="info-value">{{ patient.doctor_name or 'Unassigned' }}</span></div>
+        <div class="info-row"><span class="info-label">Profile Created</span><span class="info-value">{{ patient.profile_created_at[:16] if patient.profile_created_at else '-' }}</span></div>
+        <div class="info-row"><span class="info-label">Profile Updated</span><span class="info-value">{{ patient.profile_updated_at[:16] if patient.profile_updated_at else '-' }}</span></div>
+        <div class="info-row"><span class="info-label">Receptionist</span><span class="info-value">{{ patient.receptionist_name or '-' }}</span></div>
+        <div class="info-row"><span class="info-label">Visit Logged</span><span class="info-value">{{ patient.admitted_at[:16] }}</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Update Visit Status</span>
+      </div>
+      <form method="POST" action="{{ url_for('update_status', pid=patient.id) }}" style="display:flex; gap:10px; flex-wrap:wrap;">
+        <select name="status" class="form-control" style="flex:1; min-width:180px;">
+          {% for s in ['waiting','in_consultation','prescribed','discharged'] %}
+          <option value="{{ s }}" {% if patient.status==s %}selected{% endif %}>{{ s.replace('_',' ').title() }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn btn-primary" type="submit"><i class="fa-solid fa-check"></i> Update Status</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Appointment Trail</span>
+      </div>
+      {% if appointments %}
+      <div class="stack">
+      {% for a in appointments %}
+        <div class="mini-card">
+          <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+            <div>
+              <div style="font-weight:800;">{{ a.doctor_name }}</div>
+              <div class="text-muted">{{ a.doctor_specialization or '-' }}</div>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <span class="badge badge-{{ a.status }}">{{ a.status.replace('_',' ') }}</span>
+              <span class="badge badge-{{ a.payment_status }}">{{ a.payment_status }}</span>
+            </div>
+          </div>
+          <div class="text-muted" style="margin-top:8px;">{{ a.appointment_date }} at {{ format_time_label(a.appointment_time) }}</div>
+          {% if a.patient_alert_message %}
+          <div class="text-muted" style="margin-top:8px;">Alert issued: {{ a.patient_alert_message }}</div>
+          {% endif %}
+          {% if a.cancellation_deadline %}
+          <div class="text-muted" style="margin-top:6px;">Refund cut-off: {{ a.cancellation_deadline }}</div>
+          {% endif %}
+        </div>
+      {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state"><i class="fa-solid fa-calendar-xmark"></i><p>No appointment trail found.</p></div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Visit History Under Same Profile</span>
+      </div>
+      {% if visit_history %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Visit</th>
+              <th>Reason</th>
+              <th>Status</th>
+              <th>Doctor</th>
+              <th>Logged</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for visit in visit_history %}
+            <tr {% if visit.id == patient.id %}style="background:rgba(216,237,228,0.24);"{% endif %}>
+              <td>#{{ visit.id }}</td>
+              <td>{{ visit.visit_reason or '-' }}</td>
+              <td><span class="badge badge-{{ visit.status }}">{{ visit.status.replace('_',' ') }}</span></td>
+              <td>{{ visit.doctor_name or '-' }}</td>
+              <td class="text-muted">{{ visit.admitted_at[:16] }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state"><i class="fa-solid fa-clock-rotate-left"></i><p>No prior visits found under this profile.</p></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Prescriptions</span>
+    {% if session.role == 'doctor' and patient.status in ['waiting','in_consultation'] %}
+    <a class="btn btn-primary btn-sm" href="{{ url_for('prescribe', pid=patient.id) }}"><i class="fa-solid fa-plus"></i> New Prescription</a>
+    {% endif %}
+  </div>
+  {% if prescriptions %}
+  <div class="stack">
+  {% for pr in prescriptions %}
+    <div class="mini-card">
+      <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+        <div>
+          <div style="font-weight:800;">Prescription #{{ pr.id }}</div>
+          <div class="text-muted">By {{ pr.doctor_name }} · {{ pr.created_at[:16] }}</div>
+        </div>
+        <a class="btn btn-outline btn-sm" href="{{ url_for('prescription_pdf', prescription_id=pr.id) }}" target="_blank">PDF</a>
+      </div>
+      <div class="info-grid">
+        <div class="info-row"><span class="info-label">Diagnosis</span><span class="info-value">{{ pr.diagnosis }}</span></div>
+        <div class="info-row"><span class="info-label">Medicines</span><span class="info-value" style="white-space:pre-line;">{{ pr.medicines }}</span></div>
+        {% if pr.instructions %}
+        <div class="info-row"><span class="info-label">Instructions</span><span class="info-value">{{ pr.instructions }}</span></div>
+        {% endif %}
+        {% if pr.follow_up_date %}
+        <div class="info-row"><span class="info-label">Follow-up</span><span class="info-value">{{ pr.follow_up_date }}</span></div>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="fa-solid fa-file-prescription"></i><p>No prescriptions have been stored for this visit yet.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

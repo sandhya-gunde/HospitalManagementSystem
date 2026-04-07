@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}Prescription Desk - MediCare HMS{% endblock %}
+{% block topbar_title %}Prescription Desk{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Clinical Prescription Writer</div>
+    <div class="page-sub">Start from a general health template and then add the doctor’s own instructions, medicines, follow-up advice, or further tests.</div>
+  </div>
+  <a class="btn btn-ghost" href="{{ url_for('patient_detail', pid=patient.id) }}"><i class="fa-solid fa-arrow-left"></i> Back to Profile</a>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 360px; gap:20px; align-items:start;">
+  <form method="POST" action="{{ url_for('prescribe', pid=patient.id) }}">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Prescription Details for {{ patient.name }}</span>
+        <span class="tag">{{ patient.age }} yrs · {{ patient.gender }}</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Diagnosis</label>
+        <input name="diagnosis" class="form-control" required id="diagnosis" placeholder="Enter diagnosis">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Medicines</label>
+        <textarea name="medicines" class="form-control" rows="9" required id="medicines" placeholder="Enter one medicine or recommendation per line"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Additional Instructions</label>
+        <textarea name="instructions" class="form-control" rows="5" placeholder="Add tests, food advice, extra medicine, rest guidance, or when to return."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Follow-up Date</label>
+        <input name="follow_up_date" type="date" class="form-control" id="follow-up">
+      </div>
+
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <button class="btn btn-success" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save Prescription</button>
+        <a class="btn btn-ghost" href="{{ url_for('patient_detail', pid=patient.id) }}">Cancel</a>
+      </div>
+    </div>
+  </form>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Patient Summary</span>
+      </div>
+      <div class="info-grid">
+        <div class="info-row"><span class="info-label">Patient</span><span class="info-value">{{ patient.name }}</span></div>
+        <div class="info-row"><span class="info-label">Age / Gender</span><span class="info-value">{{ patient.age }} / {{ patient.gender }}</span></div>
+        <div class="info-row"><span class="info-label">Phone</span><span class="info-value">{{ patient.phone or '-' }}</span></div>
+        <div class="info-row"><span class="info-label">Blood Group</span><span class="info-value">{{ patient.blood_group or '-' }}</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Automated Prescription Templates</span>
+      </div>
+      <div class="stack">
+        {% for item in template_cards %}
+        <button
+          class="mini-card"
+          type="button"
+          onclick='quickFill({{ item.diagnosis|tojson }}, {{ item.medicines|tojson }})'
+          style="text-align:left; cursor:pointer;"
+        >
+          <div style="font-weight:800;">{{ item.name }}</div>
+          <div class="text-muted">{{ item.diagnosis }}</div>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const followUp = document.getElementById('follow-up');
+  const nextWeek = new Date();
+  nextWeek.setDate(nextWeek.getDate() + 7);
+  followUp.value = nextWeek.toISOString().split('T')[0];
+  followUp.min = new Date().toISOString().split('T')[0];
+
+  function quickFill(diagnosis, medicines) {
+    document.getElementById('diagnosis').value = diagnosis;
+    document.getElementById('medicines').value = medicines;
+  }
+</script>
+{% endblock %}

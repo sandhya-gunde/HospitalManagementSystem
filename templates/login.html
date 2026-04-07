@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block auth_content %}
+<style>
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at top left, rgba(216, 237, 228, 0.95), transparent 28%),
+      radial-gradient(circle at bottom right, rgba(217, 119, 87, 0.18), transparent 24%),
+      linear-gradient(135deg, #f5efe5 0%, #efe6d9 100%);
+  }
+  .login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 26px; }
+  .login-shell {
+    width: 100%;
+    max-width: 1180px;
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    border-radius: 34px;
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(24, 59, 54, 0.14);
+    background: rgba(255,253,248,0.96);
+    border: 1px solid rgba(227, 221, 210, 0.7);
+  }
+  .login-story {
+    padding: 56px;
+    background: linear-gradient(160deg, #194b44 0%, #133730 100%);
+    color: white;
+  }
+  .story-chip, .form-chip {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .story-chip { background: rgba(216,237,228,0.14); border: 1px solid rgba(216,237,228,0.18); }
+  .story-title { font-family: 'Cormorant Garamond', serif; font-size: 56px; line-height: 0.92; margin: 22px 0 14px; }
+  .story-sub { color: rgba(255,255,255,0.76); line-height: 1.8; max-width: 40ch; font-size: 15px; }
+  .story-grid { margin-top: 34px; display: grid; gap: 14px; }
+  .story-card { padding: 16px 18px; border-radius: 20px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); }
+  .story-card strong { display:block; margin-bottom:5px; font-size:14px; }
+  .story-card span { color: rgba(255,255,255,0.72); font-size: 13px; line-height: 1.6; }
+  .login-form { padding: 46px 40px; display: flex; flex-direction: column; justify-content: center; }
+  .form-chip { width: fit-content; background: #efe7da; color: #7c5d2f; margin-bottom: 16px; }
+  .form-title { font-size: 32px; font-weight: 800; color: #183b36; margin-bottom: 10px; }
+  .form-sub { color: #5f756f; font-size: 14px; line-height: 1.7; margin-bottom: 22px; }
+  .doctor-tags { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .doctor-tag {
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: rgba(255,255,255,0.88);
+    padding: 12px;
+    text-align: left;
+    cursor: pointer;
+    transition: 0.18s ease;
+  }
+  .doctor-tag:hover { border-color: var(--mint-strong); transform: translateY(-1px); }
+  .doctor-tag strong { display:block; font-size:13px; color: var(--ink); }
+  .doctor-tag span { display:block; margin-top:4px; font-size:12px; color: var(--ink-soft); }
+  .demo-note {
+    border-radius: 18px;
+    background: #edf5f1;
+    border: 1px solid #d6e8df;
+    padding: 12px 14px;
+    font-size: 12px;
+    color: #2f655d;
+    margin-bottom: 18px;
+    line-height: 1.6;
+  }
+  .login-form .btn { width: 100%; }
+  @media (max-width: 980px) {
+    .login-shell { grid-template-columns: 1fr; }
+    .login-story, .login-form { padding: 32px; }
+    .story-title { font-size: 42px; }
+  }
+  @media (max-width: 640px) {
+    .doctor-tags { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="login-wrap">
+  <div class="login-shell">
+    <div class="login-story">
+      <div class="story-chip"><i class="fa-solid fa-wave-square"></i> Flow-based HMS</div>
+      <div class="story-title">From patient request to final prescription.</div>
+      <div class="story-sub">
+        The system is designed around reception intake, doctor availability, fee confirmation, consultation, rescheduling, and long-term patient record continuity.
+      </div>
+      <div class="story-grid">
+        <div class="story-card">
+          <strong>Persistent patient history</strong>
+          <span>Returning patients continue under the same stored identity and visit trail.</span>
+        </div>
+        <div class="story-card">
+          <strong>Shared doctor calendar</strong>
+          <span>Lunch break, work window, booked slots, and busy blocks are visible to both doctor and receptionist.</span>
+        </div>
+        <div class="story-card">
+          <strong>Doctor specialization clarity</strong>
+          <span>Doctors are shown with their specialty on sign-in to reduce confusion during the demo.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="login-form">
+      <div class="form-chip"><i class="fa-solid fa-lock"></i> Staff access</div>
+      <div class="form-title">Sign in to MediCare HMS</div>
+      <div class="form-sub">Reception can type the username normally. Doctors can simply tap their name tag below and enter the shared demo password.</div>
+
+      {% for cat, msg in get_flashed_messages(with_categories=True) %}
+      <div class="alert alert-{{ cat }}"><i class="fa-solid fa-circle-xmark"></i> {{ msg }}</div>
+      {% endfor %}
+
+      <div class="demo-note">
+        <strong>Doctor demo login:</strong> choose any doctor below, then enter the common doctor demo password.
+      </div>
+
+      <div class="doctor-tags">
+        {% for doctor in doctors %}
+        <button type="button" class="doctor-tag" onclick="pickDoctor('{{ doctor.full_name|escape }}','{{ doctor.username|escape }}')">
+          <strong>{{ doctor.full_name }}</strong>
+          <span>{{ doctor.specialization or 'General Medicine' }}</span>
+        </button>
+        {% endfor %}
+      </div>
+
+      <form method="POST" action="{{ url_for('login') }}">
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input name="username" id="username" class="form-control" placeholder="Select doctor tag or type username" required autofocus>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input name="password" id="password" type="password" class="form-control" placeholder="Enter password" required>
+        </div>
+        <button class="btn btn-primary" type="submit">
+          <i class="fa-solid fa-right-to-bracket"></i> Open Workspace
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function pickDoctor(name, username) {
+    document.getElementById('username').value = username;
+    document.getElementById('password').focus();
+  }
+</script>
+{% endblock %}
